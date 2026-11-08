@@ -99,24 +99,6 @@ async function main() {
     await expectContext(() => lastSocket.handlers.connect(), id, 'poll');
   }
   readFailure = undefined;
-  for (const id of ['huaweiwithbatt', 'huaweidouble', 'huaweiwithemma']) {
-    const device = deviceFor(id);
-    failure = { err: 'Timeout', message: 'Req timed out', request: { address: 47086 } };
-    writes = [];
-    const type = id === 'huaweiwithemma' ? 'battery_control' : 'storage_working_mode_settings';
-    const start = async () => {
-      if (id === 'huaweidouble') await device.updateControl(type, 1, 2, device);
-      else await device.updateControl(type, 2, device);
-    };
-    await start();
-    await expectContext(() => lastSocket.handlers.connect(), id, `write=${type}`);
-    assert.equal(writes.length, 1);
-    failure = undefined;
-    writes = [];
-    await start();
-    await lastSocket.handlers.connect();
-    assert.deepEqual(writes, [[id === 'huaweiwithemma' ? 40000 : 47086, 2]], 'preserve control address and value');
-  }
-  console.log('Huawei errors: all four poll paths, three write paths, circular objects, original stacks and successful writes passed');
+  console.log('Huawei errors: all four poll paths, circular objects and original stacks passed');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

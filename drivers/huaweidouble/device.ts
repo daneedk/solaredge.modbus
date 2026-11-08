@@ -1,3 +1,4 @@
+import writeHuaweiRegister from '../../lib/huawei-write';
 // eslint-disable-next-line node/no-missing-import
 import withErrorContext from '../../lib/error-context';
 // eslint-disable-next-line node/no-missing-import
@@ -56,70 +57,7 @@ class MyHuaweiDoubleDeviceBattery extends Huawei {
   }
 
   async updateControl(type: string, deviceid: number, value: number, device: Homey.Device) {
-    const name = device.getData().id;
-    this.log(`device name id ${name}`);
-    this.log(`device name ${device.getName()}`);
-    const socket = new net.Socket();
-
-    const client = new Modbus.client.TCP(socket, deviceid, 5500);
-
-    const modbusOptions = {
-      host: device.getSetting('address'),
-      port: device.getSetting('port'),
-      timeout: 25,
-      autoReconnect: false,
-      logLabel: 'huawei Inverter',
-      logLevel: 'error',
-      logEnabled: true,
-    };
-
-    socket.setKeepAlive(false);
-    socket.connect(modbusOptions);
-    console.log(modbusOptions);
-
-    const errorContext = `Huawei driver=${device.driver.id} device=${device.getData().id} name=${device.getName()} write=${type} unit=${deviceid}`;
-    socket.on('connect', withErrorContext(errorContext, async () => {
-      console.log('Connected ...');
-      await this.delay(5000);
-      if (type == 'storage_excess_pv_energy_use_in_tou') {
-        const storage_excess_pvRes = await client.writeSingleRegister(47299, value);
-        console.log('storage_excess_pv_energy_use_in_tou', storage_excess_pvRes);
-      }
-
-      if (type == 'storage_force_charge_discharge') {
-        const storage_forceRes = await client.writeSingleRegister(47100, value);
-        console.log('storage_force_charge_discharge', storage_forceRes);
-      }
-
-      if (type == 'activepower_controlmode') {
-        const activepowerRes = await client.writeSingleRegister(47415, value);
-        console.log('activepower_controlmode', activepowerRes);
-      }
-
-      if (type == 'remote_charge_discharge_control_mode') {
-        const controlmodeRes = await client.writeSingleRegister(47589, value);
-        console.log('remote_charge_discharge_control_mode', controlmodeRes);
-      }
-
-      if (type == 'storage_working_mode_settings') {
-        const storageworkingmodesettingsRes = await client.writeSingleRegister(47086, value);
-        console.log('storage_working_mode_settings', storageworkingmodesettingsRes);
-      }
-
-      console.log('disconnect');
-      client.socket.end();
-      socket.end();
-    }));
-
-    socket.on('close', () => {
-      console.log('Client closed');
-    });
-
-    socket.on('error', (err) => {
-      console.log(err);
-      socket.end();
-      setTimeout(() => socket.connect(modbusOptions), 12000);
-    });
+    await writeHuaweiRegister(device, type, deviceid, value, 5000);
   }
 
   /**

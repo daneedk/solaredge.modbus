@@ -1,3 +1,4 @@
+import writeHuaweiRegister from '../../lib/huawei-write';
 // eslint-disable-next-line node/no-missing-import
 import withErrorContext from '../../lib/error-context';
 import * as Modbus from 'jsmodbus';
@@ -52,11 +53,11 @@ class MyHuaweiEmmaDevice extends Huawei {
 
     // homey menu / device actions
     this.registerCapabilityListener('battery_control', async (value) => {
-      this.updateControl('battery_control', Number(value), this);
+      await this.updateControl('battery_control', Number(value), this);
       return value;
     });
     this.registerCapabilityListener('power_control_mode_at_grid', async (value) => {
-      this.updateControl('power_control_mode_at_grid', Number(value), this);
+      await this.updateControl('power_control_mode_at_grid', Number(value), this);
       return value;
     });
 
@@ -120,65 +121,7 @@ class MyHuaweiEmmaDevice extends Huawei {
   }
 
   async updateControl(type: string, value: number, device: Homey.Device) {
-    const name = device.getData().id;
-    this.log(`device name id ${name}`);
-    this.log(`device name ${device.getName()}`);
-    const socket = new net.Socket();
-    const unitID = device.getSetting('id');
-    const client = new Modbus.client.TCP(socket, unitID, 2000);
-
-    const modbusOptions = {
-      host: device.getSetting('address'),
-      port: device.getSetting('port'),
-      unitId: device.getSetting('id'),
-      timeout: 15,
-      autoReconnect: false,
-      logLabel: 'emma device',
-      logLevel: 'error',
-      logEnabled: true,
-    };
-
-    socket.setKeepAlive(false);
-    socket.connect(modbusOptions);
-    console.log(modbusOptions);
-
-    const errorContext = `Huawei driver=${device.driver.id} device=${device.getData().id} name=${device.getName()} write=${type} unit=${unitID}`;
-    socket.on('connect', withErrorContext(errorContext, async () => {
-      if (type == 'battery_control') {
-        // Battery control ESS control mode RW ENUM16 40000 1
-        // 1: reserved
-        // 2: maximum self-consumption
-        // 3: reserved
-        // 4: fully fed to grid
-        // 5: time of use
-        // 6: Third- party dispatch
-        const battery_controlRes = await client.writeSingleRegister(40000, Number(value));
-        console.log('battery_control', battery_controlRes);
-      }
-
-      if (type == 'power_control_mode_at_grid') {
-        // 0: unlimited
-        // 5: grid connecte d with zero power
-        // 6: limited feed-in (kW)
-        // 7: power- limited grid connecte d (%)
-        const power_control_mode_at_gridRes = await client.writeSingleRegister(40100, Number(value));
-        console.log('power_control_mode_at_grid', power_control_mode_at_gridRes);
-      }
-
-      console.log('disconnect');
-      client.socket.end();
-      socket.end();
-    }));
-
-    socket.on('close', () => {
-      console.log('Client closed');
-    });
-
-    socket.on('error', (err) => {
-      console.log(err);
-      socket.end();
-      setTimeout(() => socket.connect(modbusOptions), 4000);
-    });
+    await writeHuaweiRegister(device, type, Number(device.getSetting('id')), value);
   }
 
   async pollInvertor() {

@@ -1,3 +1,4 @@
+import writeHuaweiRegister from '../../lib/huawei-write';
 // eslint-disable-next-line node/no-missing-import
 import withErrorContext from '../../lib/error-context';
 import * as Modbus from 'jsmodbus';
@@ -29,24 +30,24 @@ class MyHuaweiDeviceBattery extends Huawei {
 
     // homey menu / device actions
     this.registerCapabilityListener('storage_excess_pv_energy_use_in_tou', async (value) => {
-      this.updateControl('storage_excess_pv_energy_use_in_tou', Number(value), this);
+      await this.updateControl('storage_excess_pv_energy_use_in_tou', Number(value), this);
       return value;
     });
     this.registerCapabilityListener('storage_force_charge_discharge', async (value) => {
-      this.updateControl('storage_force_charge_discharge', Number(value), this);
+      await this.updateControl('storage_force_charge_discharge', Number(value), this);
       return value;
     });
     this.registerCapabilityListener('activepower_controlmode', async (value) => {
-      this.updateControl('activepower_controlmode', Number(value), this);
+      await this.updateControl('activepower_controlmode', Number(value), this);
       return value;
     });
     this.registerCapabilityListener('remote_charge_discharge_control_mode', async (value) => {
-      this.updateControl('remote_charge_discharge_control_mode', Number(value), this);
+      await this.updateControl('remote_charge_discharge_control_mode', Number(value), this);
       return value;
     });
 
     this.registerCapabilityListener('storage_working_mode_settings', async (value) => {
-      this.updateControl('storage_working_mode_settings', Number(value), this);
+      await this.updateControl('storage_working_mode_settings', Number(value), this);
       return value;
     });
 
@@ -113,69 +114,7 @@ class MyHuaweiDeviceBattery extends Huawei {
   }
 
   async updateControl(type: string, value: number, device: Homey.Device) {
-    const socket = new net.Socket();
-    const unitID = device.getSetting('id');
-
-    const client = new Modbus.client.TCP(socket, unitID, 5500);
-
-    const modbusOptions = {
-      host: this.getSetting('address'),
-      port: this.getSetting('port'),
-      unitId: this.getSetting('id'),
-      timeout: 45,
-      autoReconnect: false,
-      logLabel: 'huawei Inverter Battery',
-      logLevel: 'error',
-      logEnabled: true,
-    };
-
-    socket.setKeepAlive(false);
-    socket.connect(modbusOptions);
-    console.log(modbusOptions);
-
-    const errorContext = `Huawei driver=${device.driver.id} device=${device.getData().id} name=${device.getName()} write=${type} unit=${unitID}`;
-    socket.on('connect', withErrorContext(errorContext, async () => {
-      console.log('Connected ...');
-
-      if (type == 'storage_excess_pv_energy_use_in_tou') {
-        const storage_excess_pvRes = await client.writeSingleRegister(47299, value);
-        console.log('storage_excess_pv_energy_use_in_tou', storage_excess_pvRes);
-      }
-
-      if (type == 'storage_force_charge_discharge') {
-        const storage_forceRes = await client.writeSingleRegister(47100, value);
-        console.log('storage_force_charge_discharge', storage_forceRes);
-      }
-
-      if (type == 'activepower_controlmode') {
-        const activepowerRes = await client.writeSingleRegister(47415, value);
-        console.log('activepower_controlmode', activepowerRes);
-      }
-
-      if (type == 'remote_charge_discharge_control_mode') {
-        const controlmodeRes = await client.writeSingleRegister(47589, value);
-        console.log('remote_charge_discharge_control_mode', controlmodeRes);
-      }
-
-      if (type == 'storage_working_mode_settings') {
-        const storageworkingmodesettingsRes = await client.writeSingleRegister(47086, value);
-        console.log('storage_working_mode_settings', storageworkingmodesettingsRes);
-      }
-
-      console.log('disconnect');
-      client.socket.end();
-      socket.end();
-    }));
-
-    socket.on('close', () => {
-      console.log('Client closed');
-    });
-
-    socket.on('error', (err) => {
-      console.log(err);
-      socket.end();
-      setTimeout(() => socket.connect(modbusOptions), 4000);
-    });
+    await writeHuaweiRegister(device, type, Number(device.getSetting('id')), value);
   }
 
   delay(ms: any) {
